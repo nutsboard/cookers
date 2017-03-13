@@ -1,6 +1,7 @@
 TOP="${PWD}"
 PATH_KERNEL="${PWD}/linux-am335x"
 PATH_UBOOT="${PWD}/u-boot"
+PATH_LEDE="${PWD}/lede"
 LINUX_ROOTFS=lede-omap-default-rootfs.tar.gz
 
 export PATH="${PATH_UBOOT}/tools:${PATH}"
@@ -86,6 +87,10 @@ heat() {
             cd "${PATH_UBOOT}"
             make "$@" || return $?
             ;;
+        "${PATH_LEDE}"*)
+            cd "${PATH_LEDE}"
+            make "$@" || return $?
+            ;;
         *)
             echo -e "Error: outside the project" >&2
             return 1
@@ -102,6 +107,7 @@ cook() {
         "${TOP}")
             cd ${PATH_UBOOT} && cook "$@" || return $?
             cd ${PATH_KERNEL} && cook "$@" || return $?
+            cd ${PATH_LEDE} && cook "$@" || return $?
             ;;
         "${PATH_KERNEL}"*)
             cd "${PATH_KERNEL}"
@@ -111,6 +117,14 @@ cook() {
         "${PATH_UBOOT}"*)
             cd "${PATH_UBOOT}"
             make "$@" $UBOOT_CONFIG || return $?
+            heat "$@" || return $?
+            ;;
+        "${PATH_LEDE}"*)
+            cd "${PATH_LEDE}"
+            ./scripts/feeds update -a
+            ./scripts/feeds install -a
+            cp target/linux/"$CPU_TYPE"/"$CPU_TYPE"_"$CPU_MODULE"_defconfig .config
+            make defconfig
             heat "$@" || return $?
             ;;
         *)
@@ -152,39 +166,38 @@ flashcard() {
     local TMP_PWD="${PWD}"
     sd_node="$@"
     echo $sd_node
-    if [[ "$CPU_TYPE" == "am335x" ]]; then
-      mkdir mnt
 
-      (echo 2; echo n) | sudo ./cookers/create-sdcard.sh sde
+    mkdir mnt
 
-      echo"============ flashing the U-boot ================"
-      sudo mount /dev/${sd_node}1 mnt
-      sudo cp -rv $PATH_UBOOT/MLO mnt/
-      sudo cp -rv $PATH_UBOOT/u-boot.img mnt/
-      sudo cp -rv $PATH_UBOOT/board/tailyn/$BASEBOARD/uEnv.txt mnt/
-      sync;
+    (echo 2; echo n) | sudo ./cookers/create-sdcard.sh sde
 
-      echo"============ flashing the Kernel ================"
-      sudo cp -rv $PATH_KERNEL/arch/arm/boot/zImage mnt/
-      sudo cp -rv $PATH_KERNEL/arch/arm/boot/dts/$DTB_TARGET mnt/
+    echo"============ flashing the U-boot ================"
+    sudo mount /dev/${sd_node}1 mnt
+    sudo cp -rv $PATH_UBOOT/MLO mnt/
+    sudo cp -rv $PATH_UBOOT/u-boot.img mnt/
+    sudo cp -rv $PATH_UBOOT/board/tailyn/$BASEBOARD/uEnv.txt mnt/
+    sync;
 
-      sudo umount mnt
-      sync;
-      sudo mount /dev/${sd_node}2 mnt
+    echo"============ flashing the Kernel ================"
+    sudo cp -rv $PATH_KERNEL/arch/arm/boot/zImage mnt/
+    sudo cp -rv $PATH_KERNEL/arch/arm/boot/dts/$DTB_TARGET mnt/
 
-      echo"============ flashing the rootfs ================"
-      cd mnt
-      sudo tar zxvf ../"$LINUX_ROOTFS"
-      cd -
-      sync;
+    sudo umount mnt
+    sync;
+    sudo mount /dev/${sd_node}2 mnt
 
-      echo"============ flashing the Kernel Modules ================"
-      sudo rm -rf mnt/lib/modules/*
-      sudo mkdir -p mnt/lib/modules/
-      sudo cp -rv $PATH_KERNEL/modules/lib/modules/* mnt/lib/modules/
-      sudo umount mnt
-      rm -rf mnt
-   fi
+    echo"============ flashing the rootfs ================"
+    cd mnt
+    sudo tar zxvf ../"$LINUX_ROOTFS"
+    cd -
+    sync;
+
+    echo"============ flashing the Kernel Modules ================"
+    sudo rm -rf mnt/lib/modules/*
+    sudo mkdir -p mnt/lib/modules/
+    sudo cp -rv $PATH_KERNEL/modules/lib/modules/* mnt/lib/modules/
+    sudo umount mnt
+    rm -rf mnt
 }
 
 ubi_create() {
