@@ -1,12 +1,16 @@
 TOP="${PWD}"
 PATH_KERNEL="${PWD}/linux-am335x"
-PATH_UBOOT="${PWD}/u-boot"
+PATH_UBOOT="${PWD}/u-boot-am335x"
 PATH_LEDE="${PWD}/lede"
-LINUX_ROOTFS=lede-omap-default-rootfs.tar.gz
+LINUX_ROOTFS=lede-nutsboard-almond-default-rootfs.tar.gz
 
 export PATH="${PATH_UBOOT}/tools:${PATH}"
 export ARCH=arm
-export CROSS_COMPILE="${PWD}/toolchain/bin/arm-linux-gnueabihf-"
+if [ -d "${PWD}/toolchain" ]; then
+  export CROSS_COMPILE="${PWD}/toolchain/bin/arm-linux-gnueabihf-"
+else
+  export CROSS_COMPILE="arm-linux-gnueabihf-"
+fi
 
 # TARGET support: wandboard,edm1cf,picosom,edm1cf_6sx
 IMX_PATH="./mnt"
@@ -25,17 +29,6 @@ if [[ "$CPU_TYPE" == "imx6" ]]; then
             DTB_TARGET='imx6q-bf8a1.dtb'
         fi
     fi
-
-elif [[ "$CPU_TYPE" == "am335x" ]]; then
-    if [[ "$CPU_MODULE" == "st7b2" ]]; then
-        if [[ "$BASEBOARD" == "st7b2" ]]; then
-            UBOOT_CONFIG='am335x_st7b2_defconfig'
-            KERNEL_IMAGE='zImage'
-            KERNEL_CONFIG='nutsboard_defconfig'
-            DTB_TARGET='am335x-st7b2.dtb'
-        fi
-    fi
-
 elif [[ "$CPU_TYPE" == "nutsboard" ]]; then
     if [[ "$CPU_MODULE" == "almond" ]]; then
         if [[ "$BASEBOARD" == "walnut" ]]; then
@@ -73,6 +66,7 @@ heat() {
             cd "${TMP_PWD}"
             cd ${PATH_UBOOT} && heat "$@" || return $?
             cd ${PATH_KERNEL} && heat "$@" || return $?
+            cd ${PATH_LEDE} && cook "$@" || return $?
             cd "${TMP_PWD}"
             ;;
         "${PATH_KERNEL}"*)
@@ -144,6 +138,7 @@ throw() {
             rm -rf out
             cd ${PATH_UBOOT} && throw "$@" || return $?
             cd ${PATH_KERNEL} && throw "$@" || return $?
+            cd ${PATH_LEDE} && throw "$@" || return $?
             ;;
         "${PATH_KERNEL}"*)
             cd "${PATH_KERNEL}"
@@ -153,6 +148,11 @@ throw() {
             cd "${PATH_UBOOT}"
             make "$@" distclean || return $?
             ;;
+        "${PATH_LEDE}"*)
+            cd "${PATH_LEDE}"
+            make "$@" distclean || return $?
+            ;;
+
         *)
             echo -e "Error: outside the project" >&2
             return 1
@@ -175,7 +175,7 @@ flashcard() {
     sudo mount /dev/${sd_node}1 mnt
     sudo cp -rv $PATH_UBOOT/MLO mnt/
     sudo cp -rv $PATH_UBOOT/u-boot.img mnt/
-    sudo cp -rv $PATH_UBOOT/board/tailyn/$BASEBOARD/uEnv.txt mnt/
+    sudo cp -rv $PATH_UBOOT/board/"$CPU_TYPE"/"$CPU_MODULE"/uEnv.txt mnt/
     sync;
 
     echo"============ flashing the Kernel ================"
@@ -188,7 +188,7 @@ flashcard() {
 
     echo"============ flashing the rootfs ================"
     cd mnt
-    sudo tar zxvf ../"$LINUX_ROOTFS"
+    sudo tar zxvf ../lede/bin/targets/"$CPU_TYPE"/"$CPU_MODULE"/"$LINUX_ROOTFS"
     cd -
     sync;
 
