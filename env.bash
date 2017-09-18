@@ -7,7 +7,7 @@ export PATH="${PATH_UBOOT}/tools:${PATH}"
 export ARCH=arm
 export CROSS_COMPILE="${PWD}/toolchain/bin/arm-linux-gnueabihf-"
 
-# TARGET support: wandboard,edm1cf,picosom,edm1cf_6sx
+# TARGET support: nutsboard pistachio series
 IMX_PATH="./mnt"
 MODULE=$(basename $BASH_SOURCE)
 CPU_TYPE=$(echo $MODULE | awk -F. '{print $3}')
