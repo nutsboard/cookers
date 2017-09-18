@@ -1,6 +1,6 @@
 TOP="${PWD}"
-PATH_KERNEL="${PWD}/linux-am335x"
-PATH_UBOOT="${PWD}/u-boot"
+PATH_KERNEL="${PWD}/linux-imx"
+PATH_UBOOT="${PWD}/uboot-imx"
 LINUX_ROOTFS=lede-omap-default-rootfs.tar.gz
 
 export PATH="${PATH_UBOOT}/tools:${PATH}"
@@ -15,36 +15,14 @@ CPU_MODULE=$(echo $MODULE | awk -F. '{print $4}')
 BASEBOARD=$(echo $MODULE | awk -F. '{print $5}')
 
 
-if [[ "$CPU_TYPE" == "imx6" ]]; then
-    if [[ "$CPU_MODULE" == "bf8a1" ]]; then
-        if [[ "$BASEBOARD" == "bf8a1" ]]; then
-            UBOOT_CONFIG='mx6_bf8a1_defconfig'
+if [[ "$CPU_TYPE" == "nutsboard" ]]; then
+    if [[ "$CPU_MODULE" == "pistachio" ]]; then
+        if [[ "$BASEBOARD" == "pistachio" ]]; then
+            UBOOT_CONFIG='mx6_pistachio_defconfig'
             KERNEL_IMAGE='zImage'
-            KERNEL_CONFIG='tn_imx_bf8a1_defconfig'
-            DTB_TARGET='imx6q-bf8a1.dtb'
+            KERNEL_CONFIG='nutsboard_imx_defconfig'
+            DTB_TARGET='imx6q-pistachio.dtb'
         fi
-    fi
-
-elif [[ "$CPU_TYPE" == "am335x" ]]; then
-    if [[ "$CPU_MODULE" == "st7b2" ]]; then
-        if [[ "$BASEBOARD" == "st7b2" ]]; then
-            UBOOT_CONFIG='am335x_st7b2_defconfig'
-            KERNEL_IMAGE='zImage'
-            KERNEL_CONFIG='nutsboard_defconfig'
-            DTB_TARGET='am335x-st7b2.dtb'
-        fi
-    fi
-
-elif [[ "$CPU_TYPE" == "nutsboard" ]]; then
-    if [[ "$CPU_MODULE" == "almond" ]]; then
-        if [[ "$BASEBOARD" == "walnut" ]]; then
-            UBOOT_CONFIG='nutsboard_almond_defconfig'
-            KERNEL_IMAGE='zImage'
-            KERNEL_CONFIG='nutsboard_defconfig'
-            DTB_TARGET='am335x-nutsboard-almond.dtb'
-        fi
-
-
     fi
 fi
 
@@ -185,22 +163,4 @@ flashcard() {
       sudo umount mnt
       rm -rf mnt
    fi
-}
-
-ubi_create() {
-
-  local TMP_PWD="${PWD}"
-  sd_node="$@"
-  echo $sd_node
-  mkdir mnt
-  sudo  mount ${sd_node}2 mnt
-
-  sudo mkfs.ubifs -F -q -r mnt -m 2048 -e 126976 -c 2047 -o ubifs.img
-  sync;
-  sudo ubinize -o ubi.img -m 2048 -p 128KiB -s 2048 cookers/ubinize.cfg
-  sync;
-
-  sudo rm ubifs.img
-  sudo umount mnt
-  rm -rf mnt
 }
