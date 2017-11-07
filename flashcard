@@ -58,16 +58,35 @@ if ! [ -b $devnode ] ; then
     err "Error: $devnode does not exist."
 fi
 
+if [[ "$2" == "pistachio" ]]; then
+  DEVICE="pistachio"
+  DTB_TARGET='imx6q-pistachio.dtb'
+fi
+
 upload_kernel() {
+    mkdir sdcard 2>/dev/null
+    mount ${devnode}1 sdcard
     echo -e "\n${COL_GREEN}--${COL_NORMAL}"
-    echo -e "${COL_GREEN}Flashing uImage to ${devnode}...${COL_NORMAL}"
-    dd if=kernel/arch/arm/boot/uImage of=${devnode} bs=512 seek=2048 conv=fsync
+    echo -e "${COL_GREEN}Flashing zImage and dtb files to ${devnode}...${COL_NORMAL}"
+    cp -rv uboot-imx/board/nutsboard/${DEVICE}/uEnv.txt sdcard/uEnv.txt
+    cp -rv linux-imx/arch/arm/boot/zImage sdcard/
+    cp -rv linux-imx/arch/arm/boot/dts/"$DTB_TARGET" sdcard/
+    umount sdcard 2>/dev/null
+
+    echo -e "\n${COL_GREEN}--${COL_NORMAL}"
+    echo -e "${COL_GREEN}Flashing k-modules to ${devnode}...${COL_NORMAL}"
+
+    mount ${devnode}2 sdcard 2>/dev/null
+    mkdir -p sdcard/lib/modules/
+    cp -rv linux-imx/modules/lib/modules/* sdcard/lib/modules/
+    umount sdcard 2>/dev/null
+    rm -rf sdcard 2>/dev/null
 }
 
 upload_uboot() {
     echo -e "\n${COL_GREEN}--${COL_NORMAL}"
-    echo -e "${COL_GREEN}Flashing u-boot.bin to ${devnode}...${COL_NORMAL}"
-    dd if=u-boot/u-boot.bin of=${devnode} bs=512 seek=2 skip=2 conv=fsync
+    echo -e "${COL_GREEN}Flashing u-boot.imx to ${devnode}...${COL_NORMAL}"
+    dd if=uboot-imx/u-boot.imx of=${devnode} bs=1K seek=1;sync;
 }
 
 ishdd=0
@@ -107,35 +126,33 @@ dd if=/dev/zero of=${devnode} bs=512 count=4096 conv=fsync
 dd if=/dev/zero of=${devnode} bs=512 count=4096 conv=fsync seek=$((`blockdev --getsz ${devnode}` - 4096))
 partprobe
 
-upload_uboot
-
-upload_kernel
-
 echo -e "\n${COL_GREEN}--${COL_NORMAL}"
 echo -e "${COL_GREEN}Manipulating partiton table on ${devnode}...${COL_NORMAL}"
-(echo n; echo p; echo 1; echo 16384; echo; echo w;) | fdisk ${devnode}
+(echo n; echo p; echo 1; echo 2048; echo 34815; echo n; echo p; echo 2; echo; echo; echo w;) | fdisk ${devnode}
 
 echo -e "\n${COL_GREEN}--${COL_NORMAL}"
 echo -e "${COL_GREEN}Creating filesystem on ${devnode}1...${COL_NORMAL}"
-mkfs.ext3 ${devnode}1
+mkfs.fat -F 32 ${devnode}1
+mkfs.ext4 ${devnode}2
 
 echo -e "\n${COL_GREEN}--${COL_NORMAL}"
 echo -e "${COL_GREEN}Mounting ${devnode}1 on sdcard/...${COL_NORMAL}"
 mkdir sdcard 2>/dev/null
-mount ${devnode}1 sdcard
+mount ${devnode}2 sdcard
 
 echo -e "\n${COL_GREEN}--${COL_NORMAL}"
 echo -e "${COL_GREEN}Copying rootfs to sdcard/...${COL_NORMAL}"
 cd sdcard
-tar --numeric-owner -xzvf ../prebuilts/ubuntu/oneiric.tgz
-cd ..
+tar --numeric-owner -xzvf ../oneiric.tgz
+cd -
 
 echo -e "\n${COL_GREEN}--${COL_NORMAL}"
 echo -e "${COL_GREEN}Unmounting sdcard/...${COL_NORMAL}"
-umount sdcard
 
-cd prebuilts/ubuntu/rootfs_add/
-./combine_rootfs.sh $1
-cd -
+umount sdcard 2>/dev/null
+rm -rf sdcard 2>/dev/null
+
+upload_uboot;sync;
+upload_kernel;sync;
 
 echo -e "\n${COL_GREEN}Done.${COL_NORMAL}"

@@ -12,17 +12,15 @@ IMX_PATH="./mnt"
 MODULE=$(basename $BASH_SOURCE)
 CPU_TYPE=$(echo $MODULE | awk -F. '{print $3}')
 CPU_MODULE=$(echo $MODULE | awk -F. '{print $4}')
-BASEBOARD=$(echo $MODULE | awk -F. '{print $5}')
+DISPLAY=$(echo $MODULE | awk -F. '{print $5}')
 
 
 if [[ "$CPU_TYPE" == "nutsboard" ]]; then
     if [[ "$CPU_MODULE" == "pistachio" ]]; then
-        if [[ "$BASEBOARD" == "pistachio" ]]; then
-            UBOOT_CONFIG='mx6_pistachio_defconfig'
-            KERNEL_IMAGE='zImage'
-            KERNEL_CONFIG='nutsboard_imx_defconfig'
-            DTB_TARGET='imx6q-pistachio.dtb'
-        fi
+        UBOOT_CONFIG='mx6_pistachio_defconfig'
+        KERNEL_IMAGE='zImage'
+        KERNEL_CONFIG='nutsboard_imx_defconfig'
+        DTB_TARGET='imx6q-pistachio.dtb'
     fi
 fi
 
@@ -127,40 +125,11 @@ throw() {
 }
 
 flashcard() {
-    local TMP_PWD="${PWD}"
-    sd_node="$@"
-    echo $sd_node
-    if [[ "$CPU_TYPE" == "am335x" ]]; then
-      mkdir mnt
+  local TMP_PWD="${PWD}"
 
-      (echo 2; echo n) | sudo ./cookers/create-sdcard.sh sde
-
-      echo"============ flashing the U-boot ================"
-      sudo mount /dev/${sd_node}1 mnt
-      sudo cp -rv $PATH_UBOOT/MLO mnt/
-      sudo cp -rv $PATH_UBOOT/u-boot.img mnt/
-      sudo cp -rv $PATH_UBOOT/board/tailyn/$BASEBOARD/uEnv.txt mnt/
-      sync;
-
-      echo"============ flashing the Kernel ================"
-      sudo cp -rv $PATH_KERNEL/arch/arm/boot/zImage mnt/
-      sudo cp -rv $PATH_KERNEL/arch/arm/boot/dts/$DTB_TARGET mnt/
-
-      sudo umount mnt
-      sync;
-      sudo mount /dev/${sd_node}2 mnt
-
-      echo"============ flashing the rootfs ================"
-      cd mnt
-      sudo tar zxvf ../"$LINUX_ROOTFS"
-      cd -
-      sync;
-
-      echo"============ flashing the Kernel Modules ================"
-      sudo rm -rf mnt/lib/modules/*
-      sudo mkdir -p mnt/lib/modules/
-      sudo cp -rv $PATH_KERNEL/modules/lib/modules/* mnt/lib/modules/
-      sudo umount mnt
-      rm -rf mnt
-   fi
+  cd "${TOP}"
+  sudo -E cookers/flashcard "$@" $CPU_MODULE
+  cd "${TMP_PWD}"
 }
+
+
