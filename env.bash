@@ -20,7 +20,12 @@ if [[ "$CPU_TYPE" == "nutsboard" ]]; then
         UBOOT_CONFIG='mx6_pistachio_defconfig'
         KERNEL_IMAGE='zImage'
         KERNEL_CONFIG='nutsboard_imx_defconfig'
-        DTB_TARGET='imx6q-pistachio.dtb'
+        DTB_TARGET='imx6q-pistachio-lite.dtb'
+    elif [[ "$CPU_MODULE" == "pistachio-lite" ]]; then
+        UBOOT_CONFIG='mx6_pistachio-lite_defconfig'
+        KERNEL_IMAGE='zImage'
+        KERNEL_CONFIG='nutsboard_imx_defconfig'
+        DTB_TARGET='imx6q-pistachio-lite.dtb'
     fi
 fi
 
